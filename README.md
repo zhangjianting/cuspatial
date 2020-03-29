@@ -16,10 +16,10 @@
 
 ## Implemented operations in C++ ready for tests 
 Quadtree indexing and Point-in-Polygon test based spatial join<br>
-1 [construct quadtree on large-scale point data](./docs/quadtree_indexing_spatial_join.pdf)
-2 [compute polygon bounding boxes using parallel primitives](./docs/quadtree_indexing_spatial_join.pdf)
-3 [quadtree-polygon pairing for spatial filtering](./docs/quadtree_indexing_spatial_join.pdf)
-4 [spatial refinement to pair up points and polygons based on point-in-polygon test](./docs/quadtree_indexing_spatial_join.pdf)
+1. [construct quadtree on large-scale point data](./docs/quadtree_indexing_spatial_join.pdf)
+2. [compute polygon bounding boxes using parallel primitives](./docs/quadtree_indexing_spatial_join.pdf)
+3. [quadtree-polygon pairing for spatial filtering](./docs/quadtree_indexing_spatial_join.pdf)
+4. [spatial refinement to pair up points and polygons based on point-in-polygon test](./docs/quadtree_indexing_spatial_join.pdf)
 
 ## Future support is planned for the following operations.
 1. Point-to-polyline nearest neighbor distance
@@ -72,7 +72,7 @@ For example, $CUSPATIAL_HOME/cpp/build/gtests/SHAPEFILE_POLYGON_READER_TEST requ
 pre-generated polygon shapefiles that contain 0, 1 and 2 polygons, respectively. They are available at 
 $CUSPATIAL_HOME/test_fixtures/shapefiles <br>
 
-##running tests on NYC taxi trip data with multiple polygon datasets
+## Run tests on NYC taxi trip data with multiple polygon datasets
 URLs to polygon datasets are embedded in code. <br>
 Point data can be downloaded [here](http://geoteci.engr.ccny.cuny.edu/nyctaxidata/) </br>
 Moidify 2009.cat used in the [test code](./cpp/tests/join/spatial_join_nyctaxi_test.cu) to include data of any months</br>
