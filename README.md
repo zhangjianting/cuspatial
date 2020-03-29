@@ -5,26 +5,28 @@
 **NOTE:** cuSpatial depends on [cuDF](https://github.com/rapidsai/cudf) and
 [RMM](https://github.com/rapidsai/rmm) from [RAPIDS](https://rapids.ai/).
 
-## Implemented operations:
-cuSpatial supports the following operations on spatial and trajectory data:
-1. Spatial window query
-2. Point-in-polygon test
+## Implemented operations in 0.11:
+1. [Spatial window query](./docs/basic_spatial_trajectory_opertators.pdf)
+2. [Point-in-polygon test] (./docs/basic_spatial_trajectory_opertators.pdf)
 3. Haversine distance
 4. Hausdorff distance
-5. Deriving trajectories from point location data
-6. Computing distance/speed of trajectories
-7. Computing spatial bounding boxes of trajectories
+5. [Deriving trajectories from point location data] (./docs/basic_spatial_trajectory_opertators.pdf)
+6. [Computing distance/speed of trajectories] (./docs/basic_spatial_trajectory_opertators.pdf)
+7. [Computing spatial bounding boxes of trajectories] (./docs/basic_spatial_trajectory_opertators.pdf)
 
-Future support is planned for the following operations.
-1. Temporal window query
-2. Temporal point query (year+month+day+hour+minute+second+millisecond)
-3. Point-to-polyline nearest neighbor distance
-4. Grid-based indexing for points and polygons
-5. Quadtree-based indexing for large-scale point data
-6. R-Tree-based indexing for Polygons/Polylines
+## Implemented operations in C++ ready for tests (quadtree indexing and Point-in-Polygon test based spatial join:
+1 [construct quadtree on large-scale point data] (./docs/quadtree_indexing_spatial_join.pdf)
+2 [compute polygon bounding boxes using parallel primitives](./docs/quadtree_indexing_spatial_join.pdf)
+3 [quadtree-polygon pairing for spatial filtering] (./docs/quadtree_indexing_spatial_join.pdf)
+4 [spatial refinement to pair up points and polygons based on point-in-polygon test](./docs/quadtree_indexing_spatial_join.pdf)
+
+##Future support is planned for the following operations.
+1. Point-to-polyline nearest neighbor distance
+2. Grid-based indexing for points and polygons
+3. R-Tree-based indexing for Polygons/Polylines
 
 ## Install from Conda
-To install via conda:
+To install via conda [(0.12 and prior)]:(https://anaconda.org/rapidsai/cuspatial)
 ```
 conda install -c conda-forge -c rapidsai-nightly cuspatial
 ```
@@ -47,11 +49,11 @@ environment created in step 3 is active.
 2. clone the cuSpatial repo
 
 ```
-git clone https://github.com/rapidsai/cuspatial.git $CUSPATIAL_HOME
+git clone https://github.com/zhangjianting/cuspatial/ $CUSPATIAL_HOME
 ```
 
 3. Compile and install 
-Similar to cuDF (version 0.11), simplely run 'build.sh' diectly under $CUSPATIAL_HOME<br>
+Similar to cuDF, simplely run 'build.sh' diectly under $CUSPATIAL_HOME<br>
 Note that a "build" dir is created automatically under $CUSPATIAL_HOME/cpp
 
 4. Run C++/Python test code <br>
@@ -68,6 +70,18 @@ Some other tests involve I/O from data files under $CUSPATIAL_HOME/test_fixtures
 For example, $CUSPATIAL_HOME/cpp/build/gtests/SHAPEFILE_POLYGON_READER_TEST requires three
 pre-generated polygon shapefiles that contain 0, 1 and 2 polygons, respectively. They are available at 
 $CUSPATIAL_HOME/test_fixtures/shapefiles <br>
+
+##running tests on NYC taxi trip data with multiple polygon datasets
+URLs to polygon datasets are embedded in code. <br>
+Point data can be downloaded [here](http://geoteci.engr.ccny.cuny.edu/nyctaxidata/) </br>
+Moidify 2009.cat used in the [test code](./cpp/tests/join/spatial_join_nyctaxi_test.cu) to include data of any months</br>
+Or, create your own .cat file (one line per month data file) and use it in the test code. 
+
+To run the test:
+```
+cd $CUSPATIAL_HOME/cpp/build/
+./gtest/SPATIAL_JOIN_NYCTAXIE_TEST
+```
 
 **NOTE:** Currently, cuSpatial supports reading point/polyine/polygon data using
 Structure of Array (SoA) format and a [shapefile reader](./cpp/src/io/shp)
