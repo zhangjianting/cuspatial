@@ -6,6 +6,7 @@
 [RMM](https://github.com/rapidsai/rmm) from [RAPIDS](https://rapids.ai/).
 
 ## Implemented operations in 0.11:
+With both C++ and Python APIs and tests <br>
 1. [Spatial window query](./docs/basic_spatial_trajectory_opertators.pdf)
 2. [Point-in-polygon test](./docs/basic_spatial_trajectory_opertators.pdf)
 3. Haversine distance
@@ -14,8 +15,9 @@
 6. [Computing distance/speed of trajectories](./docs/basic_spatial_trajectory_opertators.pdf)
 7. [Computing spatial bounding boxes of trajectories](./docs/basic_spatial_trajectory_opertators.pdf)
 
-## Implemented operations in C++ ready for tests 
+## Implemented operations ready for tests 
 Quadtree indexing and Point-in-Polygon test based spatial join<br>
+C++ APIs and tests only; Python APIs and tests to be developed <br> 
 1. [construct quadtree on large-scale point data](./docs/quadtree_indexing_spatial_join.pdf)
 2. [compute polygon bounding boxes using parallel primitives](./docs/quadtree_indexing_spatial_join.pdf)
 3. [quadtree-polygon pairing for spatial filtering](./docs/quadtree_indexing_spatial_join.pdf)
