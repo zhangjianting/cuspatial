@@ -7,20 +7,21 @@
 
 ## Implemented operations in 0.11:
 1. [Spatial window query](./docs/basic_spatial_trajectory_opertators.pdf)
-2. [Point-in-polygon test] (./docs/basic_spatial_trajectory_opertators.pdf)
+2. [Point-in-polygon test](./docs/basic_spatial_trajectory_opertators.pdf)
 3. Haversine distance
 4. Hausdorff distance
-5. [Deriving trajectories from point location data] (./docs/basic_spatial_trajectory_opertators.pdf)
-6. [Computing distance/speed of trajectories] (./docs/basic_spatial_trajectory_opertators.pdf)
-7. [Computing spatial bounding boxes of trajectories] (./docs/basic_spatial_trajectory_opertators.pdf)
+5. [Deriving trajectories from point location data](./docs/basic_spatial_trajectory_opertators.pdf)
+6. [Computing distance/speed of trajectories](./docs/basic_spatial_trajectory_opertators.pdf)
+7. [Computing spatial bounding boxes of trajectories](./docs/basic_spatial_trajectory_opertators.pdf)
 
-## Implemented operations in C++ ready for tests (quadtree indexing and Point-in-Polygon test based spatial join:
-1 [construct quadtree on large-scale point data] (./docs/quadtree_indexing_spatial_join.pdf)
+## Implemented operations in C++ ready for tests 
+Quadtree indexing and Point-in-Polygon test based spatial join<br>
+1 [construct quadtree on large-scale point data](./docs/quadtree_indexing_spatial_join.pdf)
 2 [compute polygon bounding boxes using parallel primitives](./docs/quadtree_indexing_spatial_join.pdf)
-3 [quadtree-polygon pairing for spatial filtering] (./docs/quadtree_indexing_spatial_join.pdf)
+3 [quadtree-polygon pairing for spatial filtering](./docs/quadtree_indexing_spatial_join.pdf)
 4 [spatial refinement to pair up points and polygons based on point-in-polygon test](./docs/quadtree_indexing_spatial_join.pdf)
 
-##Future support is planned for the following operations.
+## Future support is planned for the following operations.
 1. Point-to-polyline nearest neighbor distance
 2. Grid-based indexing for points and polygons
 3. R-Tree-based indexing for Polygons/Polylines
