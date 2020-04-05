@@ -4,16 +4,16 @@
 
 **NOTE:** cuSpatial depends on [cuDF](https://github.com/rapidsai/cudf) and
 [RMM](https://github.com/rapidsai/rmm) from [RAPIDS](https://rapids.ai/).
-
+ 
 ## Implemented operations in 0.11:
 With both C++ and Python APIs and tests <br>
-1. [Spatial window query](./docs/basic_spatial_trajectory_opertators.pdf)
-2. [Point-in-polygon test](./docs/basic_spatial_trajectory_opertators.pdf)
+1. [Spatial window query](./docs/basic_spatial_trajectory_operators.pdf)
+2. [Point-in-polygon test](./docs/basic_spatial_trajectory_operators.pdf)
 3. Haversine distance
 4. Hausdorff distance
-5. [Deriving trajectories from point location data](./docs/basic_spatial_trajectory_opertators.pdf)
-6. [Computing distance/speed of trajectories](./docs/basic_spatial_trajectory_opertators.pdf)
-7. [Computing spatial bounding boxes of trajectories](./docs/basic_spatial_trajectory_opertators.pdf)
+5. [Deriving trajectories from point location data](./docs/basic_spatial_trajectory_operators.pdf)
+6. [Computing distance/speed of trajectories](./docs/basic_spatial_trajectory_operators.pdf)
+7. [Computing spatial bounding boxes of trajectories](./docs/basic_spatial_trajectory_operators.pdf)
 
 ## Implemented operations ready for tests 
 Quadtree indexing and Point-in-Polygon test based spatial join<br>
