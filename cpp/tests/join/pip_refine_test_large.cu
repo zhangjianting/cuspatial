@@ -57,7 +57,7 @@ struct PIPRefineTestLarge : public GdfTest
     std::unique_ptr<cudf::column> pnt_x,pnt_y;
 
     uint32_t num_polys=0,num_rings=0,num_vertices=0;
-    std::vector<OGRGeometry *> h_polygon_vec;
+    std::vector<OGRGeometry *> h_ogr_polygon_vec;
     std::unique_ptr<cudf::column> poly_fpos,poly_rpos,poly_x ,poly_y;
        
     uint32_t num_pp_pairs=0;
@@ -107,8 +107,8 @@ struct PIPRefineTestLarge : public GdfTest
         assert(d_poly_y!=nullptr);
         HANDLE_CUDA_ERROR( cudaMemcpy( d_poly_y, h_poly_y, this->num_vertices * sizeof(double), cudaMemcpyHostToDevice ) );
 
-        //populte h_polygon_vec for verification later
-        this->h_polygon_vec.clear();
+        //populte h_ogr_polygon_vec for verification later
+        this->h_ogr_polygon_vec.clear();
         uint32_t rc=0,vc=0;
         for(uint32_t fid=0;fid<num_polys;fid++)
         {
@@ -127,7 +127,7 @@ struct PIPRefineTestLarge : public GdfTest
                 polygon->addRing(ls);
                 rc++;
             }
-            this->h_polygon_vec.push_back(polygon);
+            this->h_ogr_polygon_vec.push_back(polygon);
         }
         std::cout<<"rc="<<rc<<" vc="<<vc<<std::endl;
     }
@@ -263,9 +263,9 @@ if(0)
         {
             OGRPoint pnt(h_pnt_x[k],h_pnt_y[k]);
             std::vector<uint32_t> temp_vec;
-            for(uint32_t j=0;j<this->h_polygon_vec.size();j++)
+            for(uint32_t j=0;j<this->h_ogr_polygon_vec.size();j++)
             {
-                if(this->h_polygon_vec[j]->Contains(&pnt))
+                if(this->h_ogr_polygon_vec[j]->Contains(&pnt))
                     temp_vec.push_back(j);
             }
             if(temp_vec.size()>0)

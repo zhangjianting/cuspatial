@@ -10,10 +10,11 @@
 #include <utility/helper_thrust.cuh>
 
 #include <ogrsf_frmts.h>
+#include <geos_c.h>
 
 #include "spatial_join_test_utility.hpp"
 
-bool compute_mismatch(uint32_t num_pp_pairs,const std::vector<uint32_t>&  org_poly_idx_vec,
+bool compute_mismatch(uint32_t num_pp_pairs,const std::vector<uint32_t>&  h_org_poly_idx_vec,
     const uint32_t *h_pnt_search_idx, const std::vector<uint32_t>& h_pnt_len_vec,const uint32_t * h_poly_search_idx,    
     uint32_t * d_pp_pnt_idx,uint32_t *d_pp_poly_idx,
     const double *h_pnt_x, const double * h_pnt_y,
@@ -86,27 +87,28 @@ if(0)
         //printf("i=%d idx=%d sign=%d lb=%d ub=%d\n",i,h_pnt_search_idx[i],h_pnt_sign[i],h_pnt_lb[i],h_pnt_ub[i]);
         if(!h_pnt_sign[i])
         {
-        //printf("i=%d pntid=%d does not hit\n",i,h_pnt_search_idx[i]);
-        uint32_t pntid=h_pnt_search_idx[i];
-        uint32_t polyid=org_poly_idx_vec[h_poly_search_idx[i]];
-        fprintf(fp,"%d, %10.2f, %10.2f, -1, %d\n",pntid,h_pnt_x[pntid],h_pnt_y[pntid],polyid);
-        num_not_found++;
+            //printf("i=%d pntid=%d does not hit\n",i,h_pnt_search_idx[i]);
+            uint32_t pntid=h_pnt_search_idx[i];
+            uint32_t polyid=h_org_poly_idx_vec[h_poly_search_idx[i]];
+            fprintf(fp,"%d, %10.2f, %10.2f, -1, %d\n",pntid,h_pnt_x[pntid],h_pnt_y[pntid],polyid);
+            num_not_found++;
         }
         else
         {
             std::set<uint32_t> gpu_set;
             for(uint32_t j=h_pnt_lb[i];j<h_pnt_ub[i];j++)
-                gpu_set.insert(org_poly_idx_vec[h_pp_poly_idx[j]]);
+                gpu_set.insert(h_org_poly_idx_vec[h_pp_poly_idx[j]]);
             std::set<uint32_t> cpu_set;
             for(uint32_t j=bpos;j<epos;j++)
-                cpu_set.insert(org_poly_idx_vec[h_poly_search_idx[j]]);
+                cpu_set.insert(h_org_poly_idx_vec[h_poly_search_idx[j]]);
             if(gpu_set!=cpu_set)
             {
                 uint32_t pntid=h_pnt_search_idx[i];
+                //printf("i=%d key=%d g_size=%lu c_size=%lu lb=%d ub=%d pointid=%d\n",
+                //    i,h_pnt_search_idx[i],gpu_set.size(),cpu_set.size(),h_pnt_lb[i],h_pnt_ub[i],pntid);
+
 if(0)
 {
-                printf("i=%d key=%d g_size=%lu c_size=%lu lb=%d ub=%d pointid=%d\n",
-                    i,h_pnt_search_idx[i],gpu_set.size(),cpu_set.size(),h_pnt_lb[i],h_pnt_ub[i],pntid);
                 printf("gpu_set\n");
                 thrust::copy(gpu_set.begin(),gpu_set.end(),std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl; 
                 printf("cpu_set\n");
@@ -117,9 +119,9 @@ if(0)
                 std::string ss="";
                 if(gpu_len>0)
                 {
-                    ss+=std::to_string(org_poly_idx_vec[h_pp_poly_idx[h_pnt_lb[i]]]);
+                    ss+=std::to_string(h_org_poly_idx_vec[h_pp_poly_idx[h_pnt_lb[i]]]);
                     for(uint32_t j=1;j<gpu_len;j++)
-                    ss+=("|"+std::to_string(org_poly_idx_vec[h_pp_poly_idx[h_pnt_lb[i]+j]]));
+                    ss+=("|"+std::to_string(h_org_poly_idx_vec[h_pp_poly_idx[h_pnt_lb[i]+j]]));
                 }
                 else
                    ss="-1";
@@ -127,9 +129,9 @@ if(0)
                 ss="";
                 if(h_pnt_len_vec[i]>0)
                 {
-                   ss+=std::to_string(org_poly_idx_vec[h_poly_search_idx[bpos]]);
+                   ss+=std::to_string(h_org_poly_idx_vec[h_poly_search_idx[bpos]]);
                    for(uint32_t j=bpos+1;j<epos;j++)
-                      ss+=("|"+std::to_string(org_poly_idx_vec[h_poly_search_idx[j]]));
+                      ss+=("|"+std::to_string(h_org_poly_idx_vec[h_poly_search_idx[j]]));
                 }
                 else
                    ss="-1";
@@ -153,13 +155,13 @@ if(0)
     std::cout<<"compute_mismatch: num_search_pnt="<<num_search_pnt<<std::endl;
     std::cout<<"compute_mismatch: num_not_found="<<num_not_found<<std::endl;
     std::cout<<"compute_mismatch: num_mis_match="<<num_mis_match<<std::endl;    
-    return (num_search_pnt==num_pp_pairs && num_not_found==0 && num_mis_match==0);
+    return (num_not_found==0 && num_mis_match==0);
 }
 
-std::unique_ptr<cudf::experimental::table> bbox_tbl_cpu(const std::vector<OGRGeometry *>& h_polygon_vec, 
+std::unique_ptr<cudf::experimental::table> bbox_tbl_cpu(const std::vector<OGRGeometry *>& h_ogr_polygon_vec, 
     cudaStream_t stream,rmm::mr::device_memory_resource *mr)
 {
-    uint32_t num_poly=h_polygon_vec.size();
+    uint32_t num_poly=h_ogr_polygon_vec.size();
     std::unique_ptr<cudf::column> x1_col = cudf::make_numeric_column(
     cudf::data_type{cudf::experimental::type_to_id<double>()}, num_poly,cudf::mask_state::UNALLOCATED, stream, mr);
     double *d_x1=cudf::mutable_column_device_view::create(x1_col->mutable_view(), stream)->data<double>();
@@ -182,9 +184,9 @@ std::unique_ptr<cudf::experimental::table> bbox_tbl_cpu(const std::vector<OGRGeo
 
     double *h_x1=nullptr,*h_y1=nullptr,*h_x2=nullptr,*h_y2=nullptr;
 
-    //polyvec_to_bbox(h_polygon_vec,"cpu_bbox.csv",h_x1,h_y1,h_x2,h_y2);
+    //polyvec_to_bbox(h_ogr_polygon_vec,"cpu_bbox.csv",h_x1,h_y1,h_x2,h_y2);
 
-    polyvec_to_bbox(h_polygon_vec,nullptr,h_x1,h_y1,h_x2,h_y2);
+    polyvec_to_bbox(h_ogr_polygon_vec,nullptr,h_x1,h_y1,h_x2,h_y2);
 
     //write_shapefile("cpu_bbox.shp",num_poly,h_x1,h_y1,h_x2,h_y2);
 

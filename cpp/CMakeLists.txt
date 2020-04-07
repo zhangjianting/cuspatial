@@ -280,7 +280,7 @@ add_library(cuspatial SHARED
 	    src/join/pip_refine.cu
 	    src/join/quadtree_polygon.cu
 	    src/spatial/bounding_box.cu
-	    src/indexing/point_quadtree.cu
+	    src/indexing/quadtree.cu
             src/io/shp/polygon_shapefile_reader.cu
             src/io/soa/polygon_soa_reader.cu
             src/io/soa/point_soa_reader.cu

@@ -77,8 +77,6 @@ int ReadLayer(const OGRLayerH layer,std::vector<int>& g_len_v,std::vector<int>&f
      std::vector<int>& r_len_v,std::vector<double>& x_v, std::vector<double>& y_v,
          uint8_t type, std::vector<OGRGeometry *>& polygon_vec, std::vector<uint32_t>& idx_vec)
 {
-    GEOSContextHandle_t hGEOSCtxt = OGRGeometry::createGEOSContext();
-
     uint32_t num_feature=0,num_seq=0;
     OGR_L_ResetReading(layer );
     OGRFeatureH hFeat;
@@ -132,8 +130,7 @@ if(type==2)
             exit(-1);
         }
 
-        GEOSGeometry *poGEOSPoly = newShape->exportToGEOS(hGEOSCtxt);
-        polygon_vec.push_back(poGEOSPoly);
+        polygon_vec.push_back(newShape);
 
         idx_vec.push_back(num_seq++);
         std::vector<double> aPointX;
@@ -271,10 +268,10 @@ void write_shapefile(const char * file_name,uint32_t num_poly,
 * helper c++ modules for testing spatial jion
 */
 
-void polyvec_to_bbox(const std::vector<Geometry *>& h_polygon_vec,const char * file_name,
+void polyvec_to_bbox(const std::vector<OGRGeometry *>& h_ogr_polygon_vec,const char * file_name,
     double * & h_x1,double * & h_y1,double * & h_x2,double * & h_y2)
 {
-    uint32_t num_poly=h_polygon_vec.size();
+    uint32_t num_poly=h_ogr_polygon_vec.size();
 
     h_x1=new double[num_poly];
     h_y1=new double[num_poly];
@@ -285,7 +282,7 @@ void polyvec_to_bbox(const std::vector<Geometry *>& h_polygon_vec,const char * f
     for(uint32_t i=0;i<num_poly;i++)
     {
         OGREnvelope env;
-        h_polygon_vec[i]->getEnvelope(&env);
+        h_ogr_polygon_vec[i]->getEnvelope(&env);
         h_x1[i]=env.MinX;
         h_y1[i]=env.MinY;
         h_x2[i]=env.MaxX;
@@ -324,12 +321,13 @@ void gen_rand_idx(std::vector<uint32_t>& indices,uint32_t num_counts, uint32_t n
    assert(indices!=nullptr);
 }
 
-void rand_points_gdal_pip_test(uint32_t num_print_interval,const std::vector<uint32_t>& indices,
-    const std::vector<OGRGeometry *>& h_polygon_vec, std::vector<uint32_t>& h_pnt_idx_vec,
+void rand_points_ogr_pip_test(uint32_t num_print_interval,const std::vector<uint32_t>& indices,
+    const std::vector<OGRGeometry *>& h_ogr_polygon_vec, std::vector<uint32_t>& h_pnt_idx_vec,
     std::vector<uint32_t>& h_pnt_len_vec,std::vector<uint32_t>& h_poly_idx_vec,
     const double* h_pnt_x, const double* h_pnt_y)
 
 {
+    std::cout<<"h_ogr_polygon_vec.size()="<<h_ogr_polygon_vec.size()<<std::endl;
     h_pnt_idx_vec.clear();
     h_pnt_len_vec.clear();
     h_poly_idx_vec.clear();
@@ -342,17 +340,12 @@ void rand_points_gdal_pip_test(uint32_t num_print_interval,const std::vector<uin
     for(uint32_t k=0;k<num_samples;k++)
     {
         uint32_t pntid=indices[k];
-        //OGRPoint pnt(h_pnt_x[pntid],h_pnt_y[pntid]);
-        GEOSCoordSequence* seq = GEOSCoordSeq_create(1, 2);
-        GEOSCoordSeq_setX(seq, 0, h_pnt_x[pntid]);
-        GEOSCoordSeq_setY(seq, 0, h_pnt_y[pntid]);
-        GEOSGeometry pnt=GEOSGeom_createPoint(seq);
-
+        OGRPoint pnt(h_pnt_x[pntid],h_pnt_y[pntid]);
         std::vector<uint32_t> temp_vec;
-        for(uint32_t j=0;j<h_polygon_vec.size();j++)
+        for(uint32_t j=0;j<h_ogr_polygon_vec.size();j++)
         {
-            if(h_polygon_vec[j]->Contains(&pnt))
-            temp_vec.push_back(j);
+            if(h_ogr_polygon_vec[j]->Contains(&pnt))
+                temp_vec.push_back(j);
         }
         if(temp_vec.size()>0)
         {
@@ -368,12 +361,13 @@ void rand_points_gdal_pip_test(uint32_t num_print_interval,const std::vector<uin
             t0=t1;
          }
     }
+    std::cout<<"h_pnt_len_vec.size="<<h_pnt_len_vec.size()<<std::endl;
 }
 
-void matched_pairs_gdal_pip_test(uint32_t num_print_interval,const std::vector<uint32_t>& indices,
+void matched_pairs_ogr_pip_test(uint32_t num_print_interval,const std::vector<uint32_t>& indices,
     const uint32_t *h_pq_quad_idx,  const uint32_t *h_pq_poly_idx,
     const uint32_t *h_qt_length,  const uint32_t * h_qt_fpos,
-    const std::vector<OGRGeometry *>& h_polygon_vec, std::vector<uint32_t>& h_pnt_idx_vec,
+    const std::vector<OGRGeometry *>& h_ogr_polygon_vec, std::vector<uint32_t>& h_pnt_idx_vec,
     std::vector<uint32_t>& h_pnt_len_vec,std::vector<uint32_t>& h_poly_idx_vec,
     const double* h_pnt_x, const double* h_pnt_y)
 {
@@ -395,14 +389,9 @@ void matched_pairs_gdal_pip_test(uint32_t num_print_interval,const std::vector<u
         for(uint32_t i=0;i<qlen;i++)
         {
             assert(fpos+i<num_counts);
-            //OGRPoint pnt(h_pnt_x[fpos+i],h_pnt_y[fpos+i]);
-            GEOSCoordSequence* seq = GEOSCoordSeq_create(1, 2);
-            GEOSCoordSeq_setX(seq, 0, h_pnt_x[pntid]);
-            GEOSCoordSeq_setY(seq, 0, h_pnt_y[pntid]);
-            GEOSGeometry pnt=GEOSGeom_createPoint(seq);
-
+            OGRPoint pnt(h_pnt_x[fpos+i],h_pnt_y[fpos+i]);
             std::vector<uint32_t> temp_vec;
-            if(h_polygon_vec[pid]->Contains(&pnt))
+            if(h_ogr_polygon_vec[pid]->Contains(&pnt))
             {
                 h_pnt_len_vec.push_back(1);
                 uint32_t pntid=fpos+i;
@@ -419,4 +408,126 @@ void matched_pairs_gdal_pip_test(uint32_t num_print_interval,const std::vector<u
            p++;
         }
     }
+    std::cout<<"h_pnt_len_vec.size="<<h_pnt_len_vec.size()<<std::endl;
+}
+
+//copied from GEOS, required by initGEOS
+static void notice(const char* fmt, ...)
+{
+    std::fprintf(stdout, "NOTICE: ");
+
+    va_list ap;
+    va_start(ap, fmt);
+    std::vfprintf(stdout, fmt, ap);
+    va_end(ap);
+
+    std::fprintf(stdout, "\n");
+}
+
+void rand_points_geos_pip_test(uint32_t num_print_interval,const std::vector<uint32_t>& indices,
+    const std::vector<GEOSGeometry *>& h_geos_polygon_vec, std::vector<uint32_t>& h_pnt_idx_vec,
+    std::vector<uint32_t>& h_pnt_len_vec,std::vector<uint32_t>& h_poly_idx_vec,
+    const double* h_pnt_x, const double* h_pnt_y)
+
+{
+    std::cout<<"h_geos_polygon_vec.size()="<<h_geos_polygon_vec.size()<<std::endl;
+    h_pnt_idx_vec.clear();
+    h_pnt_len_vec.clear();
+    h_poly_idx_vec.clear();
+
+    initGEOS(notice, notice);
+
+    uint32_t num_samples=indices.size();
+    char  msg[100];
+    timeval t0,t1;
+    gettimeofday(&t0, nullptr);
+
+    for(uint32_t k=0;k<num_samples;k++)
+    {
+        uint32_t pntid=indices[k];
+        GEOSCoordSequence* seq = GEOSCoordSeq_create(1, 2);
+        GEOSCoordSeq_setX(seq, 0, h_pnt_x[pntid]);
+        GEOSCoordSeq_setY(seq, 0, h_pnt_y[pntid]);
+        GEOSGeometry *pnt=GEOSGeom_createPoint(seq);
+
+        std::vector<uint32_t> temp_vec;
+        for(uint32_t j=0;j<h_geos_polygon_vec.size();j++)
+        {
+             char res=GEOSContains(h_geos_polygon_vec[j],pnt);
+            //std::cout<<"k="<<k<<" j="<<j<<" res="<<(uint32_t)res<<std::endl;
+            if(res==1)
+                temp_vec.push_back(j);
+        }
+        if(temp_vec.size()>0)
+        {
+            h_pnt_len_vec.push_back(temp_vec.size());
+            h_pnt_idx_vec.push_back(pntid);
+            h_poly_idx_vec.insert(h_poly_idx_vec.end(),temp_vec.begin(),temp_vec.end());
+        }
+        if(k>0 && k%num_print_interval==0)
+        {
+            gettimeofday(&t1, nullptr);
+            sprintf(msg,"loop=%d runtime for the last %d iterations is\n",k,num_print_interval);
+            float cpu_time_per_interval=cuspatial::calc_time(msg,t0,t1);
+            t0=t1;
+         }
+    }
+    std::cout<<"h_pnt_len_vec.size="<<h_pnt_len_vec.size()<<std::endl;
+    finishGEOS();
+}
+
+void matched_pairs_geos_pip_test(uint32_t num_print_interval,const std::vector<uint32_t>& indices,
+    const uint32_t *h_pq_quad_idx,  const uint32_t *h_pq_poly_idx,
+    const uint32_t *h_qt_length,  const uint32_t * h_qt_fpos,
+    const std::vector<GEOSGeometry *>& h_geos_polygon_vec, std::vector<uint32_t>& h_pnt_idx_vec,
+    std::vector<uint32_t>& h_pnt_len_vec,std::vector<uint32_t>& h_poly_idx_vec,
+    const double* h_pnt_x, const double* h_pnt_y)
+{
+    h_pnt_idx_vec.clear();
+    h_pnt_len_vec.clear();
+    h_poly_idx_vec.clear();
+
+    initGEOS(notice, notice);
+
+    uint32_t num_samples=indices.size();
+    char  msg[100];
+    timeval t2,t3;
+    uint32_t p=0;
+    gettimeofday(&t2, nullptr);
+    for(uint32_t k=0;k<num_samples;k++)
+    {
+        uint32_t qid=h_pq_quad_idx[indices[k]];
+        uint32_t pid=h_pq_poly_idx[indices[k]];
+        uint32_t qlen=h_qt_length[qid];
+        uint32_t fpos=h_qt_fpos[qid];
+        for(uint32_t i=0;i<qlen;i++)
+        {
+            assert(fpos+i<num_counts);
+            GEOSCoordSequence* seq = GEOSCoordSeq_create(1, 2);
+            GEOSCoordSeq_setX(seq, 0, h_pnt_x[fpos+i]);
+            GEOSCoordSeq_setY(seq, 0, h_pnt_y[fpos+i]);
+            GEOSGeometry *pnt=GEOSGeom_createPoint(seq);
+
+            std::vector<uint32_t> temp_vec;
+            //if(h_geos_polygon_vec[pid]->Contains(pnt))
+            char res=GEOSContains(h_geos_polygon_vec[pid],pnt);
+            if(res==1)
+            {
+                h_pnt_len_vec.push_back(1);
+                uint32_t pntid=fpos+i;
+                h_pnt_idx_vec.push_back(pntid);
+                h_poly_idx_vec.push_back(pid);
+            }
+            if(p>0 && p%num_print_interval==0)
+            {
+                gettimeofday(&t3, nullptr);
+                sprintf(msg,"loop=%d quad=%d runtime for the last %d iterations is\n",p,k,num_print_interval);
+                float cpu_time_per_interval=cuspatial::calc_time(msg,t2,t3);
+                t2=t3;
+            }
+           p++;
+        }
+    }
+     std::cout<<"h_pnt_len_vec.size="<<h_pnt_len_vec.size()<<std::endl;
+     finishGEOS();
 }

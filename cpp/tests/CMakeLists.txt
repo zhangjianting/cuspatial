@@ -29,7 +29,7 @@ function(ConfigureTest CMAKE_TEST_NAME CMAKE_TEST_SRC)
     set_target_properties(${CMAKE_TEST_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(${CMAKE_TEST_NAME} gmock gtest gmock_main gtest_main pthread cuspatial cudf
                           cudftestutil rmm cudart cuda "${ARROW_LIB}" ${ZLIB_LIBRARIES} NVCategory
-                          NVStrings nvrtc gdal)
+                          NVStrings nvrtc gdal geos_c)
     if(USE_NVTX)
         target_link_libraries(${CMAKE_TEST_NAME} ${NVTX_LIBRARY})
     endif(USE_NVTX)
@@ -101,18 +101,18 @@ set(SPATIAL_JOIN_REFINEMENT_LARGE_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/join/pip_refine_test_large.cu")
 ConfigureTest(SPATIAL_JOIN_REFINEMENT_LARGE_TEST "${SPATIAL_JOIN_REFINEMENT_LARGE_SRC}")
 
-#set(SPATIAL_JOIN_NYCTAXI_SRC
-#    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cpp"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu"
-#    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_test.cu")    
-#ConfigureTest(SPATIAL_JOIN_NYCTAXIE_TEST "${SPATIAL_JOIN_NYCTAXI_SRC}")
+set(SPATIAL_JOIN_NYCTAXI_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu"
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_test.cu")    
+ConfigureTest(SPATIAL_JOIN_NYCTAXIE_TEST "${SPATIAL_JOIN_NYCTAXI_SRC}")
 
 set(BOUNDING_BOX_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/polygon_bbox_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/bounding_box_test.cu")
 ConfigureTest(BOUNDING_BOX_TEST "${BOUNDING_BOX_TEST_SRC}")
 
 set(QUADTREE_POINT_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/indexing/point_quadtree_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/indexing/quadtree_point_test.cu")
 ConfigureTest(QUADTREE_POINT_TEST "${QUADTREE_POINT_TEST_SRC}")
 
 set(COORDINATE_TRANSFORM_TEST_SRC

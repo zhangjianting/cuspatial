@@ -48,9 +48,9 @@
 #include "spatial_join_test_utility.hpp"
 
 /*
-* Test code for running spatial join on GPUs with GDAL-based CPU verification.
+* Test code for running spatial join on GPUs with GDAL/OGR-based CPU verification.
 * Different from spatial_join_refinement_small and spatial_join_refinement_large,
-* where the expected results can be either embedded in code or computed on CPU (using GDAL API),
+* where the expected results can be either embedded in code or computed on CPU (using GDAL/OGR API),
 * for yearly NYC taxitrip data, that would take donzes of hours or even more. 
 * A sampling-based verificaiton is thus needed. 
 *
@@ -68,7 +68,7 @@
 * As the relationship between points and polygons is many-to-many, the verification gives three metrics: 
 * num_search_pnt: numbers of points (from both sampling strategies) that are within at least
 * one polygons by CPU code; Disagreement between num_search_pnt and num_pp_pairs indciate mismatches;
-* num_not_found: # of point indices of GDAL/CPU results can not be found in GPU results
+* num_not_found: # of point indices of GDAL/OGR CPU results can not be found in GPU results
 * num_mis_match: for the same point index,if its assoicated non-empty polygon sets are different 
 * between CPU and GPU results, num_mis_match will be increased by 1.
 
@@ -112,15 +112,15 @@ struct SpatialJoinNYCTaxi : public GdfTest
     //the life span of d_pp_pnt_idx/d_pp_poly_idx depends on pip_pair_tbl
     uint32_t *d_pp_pnt_idx=nullptr,*d_pp_poly_idx=nullptr;
 
-    //poygons using GDAL/OGRGeometry structure
-    //std::vector<OGRGeometry *> h_polygon_vec;
-    std::vector<GEOSGeometry *> h_polygon_vec;
+    //poygons using GDAL/OGR OGRGeometry structure
+    std::vector<OGRGeometry *> h_ogr_polygon_vec;
+    std::vector<GEOSGeometry *> h_geos_polygon_vec;
 
-    //sequential idx 0..num_poly-1 to index h_polygon_vec
+    //sequential idx 0..num_poly-1 to index h_ogr_polygon_vec
     //needed when actual polygons in spatial join are only a subset, e.g., multi-polygons only  
-    std::vector<uint32_t> org_poly_idx_vec;
+    std::vector<uint32_t> h_org_poly_idx_vec;
 
-    //point idx that intersect with at least one polygon based on GDAL OGRGeometry.Contains 
+    //point idx that intersect with at least one polygon based on GDAL/OGR OGRGeometry.Contains 
     std::vector<uint32_t> h_pnt_idx_vec;
     
     //# of poylgons that are contain points indexed by h_pnt_idx_vec at the same index
@@ -153,12 +153,22 @@ struct SpatialJoinNYCTaxi : public GdfTest
         //a shapefile abstracted as a GDALDatasetGetLayer typically has only one layer
         OGRLayerH hLayer = GDALDatasetGetLayer( hDS,0 );
 
-        this->h_polygon_vec.clear();
-        this->org_poly_idx_vec.clear();
+        this->h_ogr_polygon_vec.clear();
+        this->h_geos_polygon_vec.clear();
+        this->h_org_poly_idx_vec.clear();
         
         //type: 0 for all, 1 for simple polygons and 2 for multi-polygons
-        int num_f=ReadLayer(hLayer,g_len_v,f_len_v,r_len_v,x_v,y_v,type,h_polygon_vec,org_poly_idx_vec);
+        uint32_t num_f=ReadLayer(hLayer,g_len_v,f_len_v,r_len_v,x_v,y_v,type,h_ogr_polygon_vec,h_org_poly_idx_vec);
         assert(num_f>0);
+        
+        h_geos_polygon_vec.clear();
+        GEOSContextHandle_t hGEOSCtxt = OGRGeometry::createGEOSContext();
+        for(uint32_t i=0;i<num_f;i++)
+        {
+            OGRGeometry *poOGRPoly=h_ogr_polygon_vec[i];
+            GEOSGeometry *poGEOSPoly = poOGRPoly->exportToGEOS(hGEOSCtxt);
+            h_geos_polygon_vec.push_back(poGEOSPoly);      	
+        }
 
         //num_group=g_len_v.size();
         this->num_poly=f_len_v.size();
@@ -345,7 +355,7 @@ if(0)
 
         /*
         gettimeofday(&t2, nullptr);
-        std::unique_ptr<cudf::experimental::table> bbox_tbl=bbox_tbl_cpu(h_polygon_vec);
+        std::unique_ptr<cudf::experimental::table> bbox_tbl=bbox_tbl_cpu(h_ogr_polygon_vec);
         gettimeofday(&t3, nullptr)
         float polybbox_time=cuspatial::calc_time("compute polygon bbox time=",t2,t3);
         std::cout<<"# of polygon bboxes="<<bbox_tbl->view().num_rows()<<std::endl;
@@ -421,7 +431,7 @@ if(0)
         HANDLE_CUDA_ERROR( cudaMemcpy(h_pnt_y, d_pnt_y,num_pnts * sizeof(double), cudaMemcpyDeviceToHost ) );
     }
 
-    void compare_random_points(uint32_t num_samples,uint32_t num_print_interval)
+    void compare_random_points(uint32_t num_samples,uint32_t num_print_interval,bool using_geos)
     {
         std::cout<<"compare_random_points: num_quadrants="<<this->num_quadrants
             <<" num_pp_pair="<<this->num_pp_pairs<<" num_samples="<<num_samples<<std::endl;
@@ -433,13 +443,22 @@ if(0)
         gettimeofday(&t0, nullptr);
 
         //h_pnt_idx_vec, h_pnt_len_vec and h_poly_idx_vec will be cleared first
-        rand_points_gdal_pip_test(num_print_interval,rand_indices, this->h_polygon_vec,this->h_pnt_idx_vec,
-            this->h_pnt_len_vec,this->h_poly_idx_vec,this->h_pnt_x,this->h_pnt_y);
+  
+        if(using_geos)
+        {
+            rand_points_geos_pip_test(num_print_interval,rand_indices, this->h_geos_polygon_vec,this->h_pnt_idx_vec,
+                this->h_pnt_len_vec,this->h_poly_idx_vec,this->h_pnt_x,this->h_pnt_y);
+        }
+        else
+        {
+            rand_points_ogr_pip_test(num_print_interval,rand_indices, this->h_ogr_polygon_vec,this->h_pnt_idx_vec,
+                this->h_pnt_len_vec,this->h_poly_idx_vec,this->h_pnt_x,this->h_pnt_y);
+         }       
         gettimeofday(&t1, nullptr);
-        float cpu_time=cuspatial::calc_time("cpu all-pair computing time = ",t0,t1);
-     }
-
-    void compare_matched_pairs(uint32_t num_samples,uint32_t num_print_interval)
+        float cpu_time=cuspatial::calc_time("cpu random sampling computing time = ",t0,t1);
+    }
+  
+    void compare_matched_pairs(uint32_t num_samples,uint32_t num_print_interval,bool using_geos)
     {
         std::cout<<"compare_random_points: num_quadrants="<<this->num_quadrants<<" num_pq_pairs"<<this->num_pq_pairs
             <<" num_pp_pair="<<this->num_pp_pairs<<" num_samples="<<num_samples<<std::endl;
@@ -449,12 +468,22 @@ if(0)
 
         timeval t0,t1;
         gettimeofday(&t0, nullptr);
-
-        matched_pairs_gdal_pip_test(num_print_interval,rand_indices,
-            this->h_pq_quad_idx,this->h_pq_poly_idx,this->h_qt_length,this->h_qt_fpos,
-            this->h_polygon_vec,this->h_pnt_idx_vec,this->h_pnt_len_vec,this->h_poly_idx_vec,
-            this->h_pnt_x,this->h_pnt_y);
- 
+        
+        if(using_geos)
+        {
+            matched_pairs_geos_pip_test(num_print_interval,rand_indices,
+                this->h_pq_quad_idx,this->h_pq_poly_idx,this->h_qt_length,this->h_qt_fpos,
+                this->h_geos_polygon_vec,this->h_pnt_idx_vec,this->h_pnt_len_vec,this->h_poly_idx_vec,
+                this->h_pnt_x,this->h_pnt_y);
+        }
+        else
+        {
+            matched_pairs_ogr_pip_test(num_print_interval,rand_indices,
+                this->h_pq_quad_idx,this->h_pq_poly_idx,this->h_qt_length,this->h_qt_fpos,
+                this->h_ogr_polygon_vec,this->h_pnt_idx_vec,this->h_pnt_len_vec,this->h_poly_idx_vec,
+                this->h_pnt_x,this->h_pnt_y);
+   
+        }
         gettimeofday(&t1, nullptr);
         float cpu_time=cuspatial::calc_time("cpu matched-pair computing time",t0,t1);                
     }
@@ -488,7 +517,7 @@ TEST_F(SpatialJoinNYCTaxi, test)
 {
     const uint32_t num_level=15;
     const uint32_t min_size=512;
-    const uint32_t first_n=12; 
+    const uint32_t first_n=1; 
     const char* env_p = std::getenv("CUSPATIAL_DATA");
     CUDF_EXPECTS(env_p!=nullptr,"CUSPATIAL_DATA environmental variable must be set");
 
@@ -515,11 +544,11 @@ TEST_F(SpatialJoinNYCTaxi, test)
 
     //#2: NYC Community Districts: 71 polygons
     //from https://www1.nyc.gov/assets/planning/download/zip/data-maps/open-data/nycd_11aav.zip
-    //std::string shape_filename=std::string(env_p)+std::string("nycd_11a_av/nycd.shp"); 
+    std::string shape_filename=std::string(env_p)+std::string("nycd_11a_av/nycd.shp"); 
 
     //#3: NYC Census Tract 2000 data: 2216 polygons
     //from: https://www1.nyc.gov/assets/planning/download/zip/data-maps/open-data/nyct2000_11aav.zip
-    std::string shape_filename=std::string(env_p)+std::string("nyct2000_11a_av/nyct2000.shp");        
+    //std::string shape_filename=std::string(env_p)+std::string("nyct2000_11a_av/nyct2000.shp");        
     std::cout<<"Using shapefile "<<shape_filename<<std::endl;
 
     //uint8_t poly_type=2; //multi-polygons only 
@@ -546,26 +575,28 @@ TEST_F(SpatialJoinNYCTaxi, test)
 
     this->run_test(bbox_x1,bbox_y1,bbox_x2,bbox_y2,scale,num_level,min_size);
 
-    std::cout<<"running GDAL CPU code for comparison/verification..........."<<std::endl;
+    std::cout<<"running GDAL/OGR or GEOS CPU code for comparison/verification..........."<<std::endl;
 
     //two types of verification/comparison: random points and random quadrant/polygon pairs
 
-    uint32_t num_print_interval=100;
+    uint32_t num_print_interval=10000;
+    
+    bool using_geos=true;
 
     //type 1: random points
-    uint32_t num_pnt_samples=1000;
-    this->compare_random_points(num_pnt_samples,num_print_interval);
+    uint32_t num_pnt_samples=this->num_pnts;
+    this->compare_random_points(num_pnt_samples,num_print_interval,using_geos);
 
     //type 2: random quadrant/polygon pairs
     //uint32_t num_quad_samples=10000;
-    //this->compare_matched_pairs(num_quad_samples,num_print_interval);
+    //this->compare_matched_pairs(num_quad_samples,num_print_interval,using_geos);
 
     //for unknown reason, the following two lines can not be compiled in spatial_join_test_utility.cu
     //h_pnt_search_idx and h_poly_search_idx do not need to be freed as the destructor of std::vector does it
     uint32_t * h_pnt_search_idx=&(h_pnt_idx_vec[0]);
     uint32_t * h_poly_search_idx=&(h_poly_idx_vec[0]);
 
-    bool verified=compute_mismatch(this->num_pp_pairs,this->org_poly_idx_vec,
+    bool verified=compute_mismatch(this->num_pp_pairs,this->h_org_poly_idx_vec,
         h_pnt_search_idx,this->h_pnt_len_vec,h_poly_search_idx,
         this->d_pp_pnt_idx,this->d_pp_poly_idx,   
         this->h_pnt_x,this->h_pnt_y,mr,stream);
