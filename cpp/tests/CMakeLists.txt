@@ -90,7 +90,7 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
                  )
 
 set(SPATIAL_JOIN_FILTERING_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/quadtree_polygon_filtering_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/quadtree_polygon_test.cu")
 ConfigureTest(SPATIAL_JOIN_FILTERING_TEST "${SPATIAL_JOIN_FILTERING_SRC}")
 
 set(SPATIAL_JOIN_REFINEMENT_SMALL_SRC
