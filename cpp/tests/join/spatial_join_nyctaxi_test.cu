@@ -27,6 +27,8 @@
 #include <tests/utilities/legacy/cudf_test_fixtures.h>
 
 #include <ogrsf_frmts.h>
+#include <geos_c.h>
+
 
 #include <cudf/column/column_view.hpp>
 #include <cudf/column/column_device_view.cuh>
@@ -111,7 +113,8 @@ struct SpatialJoinNYCTaxi : public GdfTest
     uint32_t *d_pp_pnt_idx=nullptr,*d_pp_poly_idx=nullptr;
 
     //poygons using GDAL/OGRGeometry structure
-    std::vector<OGRGeometry *> h_polygon_vec;
+    //std::vector<OGRGeometry *> h_polygon_vec;
+    std::vector<GEOSGeometry *> h_polygon_vec;
 
     //sequential idx 0..num_poly-1 to index h_polygon_vec
     //needed when actual polygons in spatial join are only a subset, e.g., multi-polygons only  

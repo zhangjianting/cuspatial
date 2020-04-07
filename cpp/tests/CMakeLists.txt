@@ -90,7 +90,7 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
                  )
 
 set(SPATIAL_JOIN_FILTERING_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/quadtree_polygon_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/quadtree_polygon_filtering_test.cu")
 ConfigureTest(SPATIAL_JOIN_FILTERING_TEST "${SPATIAL_JOIN_FILTERING_SRC}")
 
 set(SPATIAL_JOIN_REFINEMENT_SMALL_SRC
@@ -101,18 +101,18 @@ set(SPATIAL_JOIN_REFINEMENT_LARGE_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/join/pip_refine_test_large.cu")
 ConfigureTest(SPATIAL_JOIN_REFINEMENT_LARGE_TEST "${SPATIAL_JOIN_REFINEMENT_LARGE_SRC}")
 
-set(SPATIAL_JOIN_NYCTAXI_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu"
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_test.cu")    
-ConfigureTest(SPATIAL_JOIN_NYCTAXIE_TEST "${SPATIAL_JOIN_NYCTAXI_SRC}")
+#set(SPATIAL_JOIN_NYCTAXI_SRC
+#    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cpp"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_test.cu")    
+#ConfigureTest(SPATIAL_JOIN_NYCTAXIE_TEST "${SPATIAL_JOIN_NYCTAXI_SRC}")
 
 set(BOUNDING_BOX_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/bounding_box_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/polygon_bbox_test.cu")
 ConfigureTest(BOUNDING_BOX_TEST "${BOUNDING_BOX_TEST_SRC}")
 
 set(QUADTREE_POINT_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/indexing/quadtree_point_test.cu")
+    "${CMAKE_CURRENT_SOURCE_DIR}/indexing/point_quadtree_test.cu")
 ConfigureTest(QUADTREE_POINT_TEST "${QUADTREE_POINT_TEST_SRC}")
 
 set(COORDINATE_TRANSFORM_TEST_SRC
@@ -134,6 +134,10 @@ set(POINT_IN_POLYGON_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/spatial/pip_test.cu"
     "${CMAKE_CURRENT_SOURCE_DIR}/spatial/pip_compare.cu")
 ConfigureTest(POINT_IN_POLYGON_TEST "${POINT_IN_POLYGON_TEST_SRC}")
+
+set(PIP_COMPLEX_POLYGON_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/pip_complex_polygon.cu")
+ConfigureTest(PIP_COMPLEX_POLYGON_TEST "${PIP_COMPLEX_POLYGON_TEST_SRC}")
 
 set(SHAPEFILE_POYGON_READER_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/io/read_shapefile_polygon_test.cu")

@@ -87,7 +87,7 @@ endif(CMAKE_BUILD_TYPE MATCHES Debug)
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--disable-new-dtags")
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 
-option(BUILD_TESTS "Configure CMake to build tests" OFF)
+option(BUILD_TESTS "Configure CMake to build tests" ON)
 
 option(BUILD_BENCHMARKS "Configure CMake to build (google) benchmarks" OFF)
 
@@ -280,7 +280,7 @@ add_library(cuspatial SHARED
 	    src/join/pip_refine.cu
 	    src/join/quadtree_polygon.cu
 	    src/spatial/bounding_box.cu
-	    src/indexing/quadtree.cu
+	    src/indexing/point_quadtree.cu
             src/io/shp/polygon_shapefile_reader.cu
             src/io/soa/polygon_soa_reader.cu
             src/io/soa/point_soa_reader.cu
