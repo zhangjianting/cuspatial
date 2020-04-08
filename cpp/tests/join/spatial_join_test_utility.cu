@@ -16,7 +16,7 @@
 
 bool compute_mismatch(uint32_t num_pp_pairs,const std::vector<uint32_t>&  h_org_poly_idx_vec,
     const uint32_t *h_pnt_search_idx, const std::vector<uint32_t>& h_pnt_len_vec,const uint32_t * h_poly_search_idx,    
-    uint32_t * d_pp_pnt_idx,uint32_t *d_pp_poly_idx,
+    const uint32_t * h_pp_pnt_idx,const uint32_t *h_pp_poly_idx,
     const double *h_pnt_x, const double * h_pnt_y,
     rmm::mr::device_memory_resource* mr, cudaStream_t stream)
 {
@@ -29,13 +29,38 @@ if(0)
     std::cout<<"h_poly_search_idx"<<std::endl;
     thrust::copy(h_poly_search_idx,h_poly_search_idx+num_search_pnt,std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl;
 }    
+
+    rmm::device_buffer *db_pp_poly_idx=new rmm::device_buffer(num_pp_pairs* sizeof(uint32_t),stream,mr);
+    CUDF_EXPECTS(db_pp_poly_idx!=nullptr, "Allocating memory for pp_poly_idx failed");
+    uint32_t * d_pp_poly_idx=static_cast<uint32_t *>(db_pp_poly_idx->data());
+    
+    rmm::device_buffer *db_pp_pnt_idx=new rmm::device_buffer(num_pp_pairs* sizeof(uint32_t),stream,mr);
+    CUDF_EXPECTS(db_pp_pnt_idx!=nullptr, "Allocating memory for pp_pnt_idx failed");
+    uint32_t * d_pp_pnt_idx=static_cast<uint32_t *>(db_pp_pnt_idx->data());
+    
+    //std::cout<<d_pp_poly_idx<<" "<<h_pp_poly_idx<<" "<<d_pp_pnt_idx<<" "<<h_pp_pnt_idx<<std::endl;
+
+    HANDLE_CUDA_ERROR( cudaMemcpy( d_pp_poly_idx, h_pp_poly_idx, num_pp_pairs * sizeof(uint32_t), cudaMemcpyHostToDevice ) ); 
+    HANDLE_CUDA_ERROR( cudaMemcpy( d_pp_pnt_idx,  h_pp_pnt_idx, num_pp_pairs * sizeof(uint32_t),  cudaMemcpyHostToDevice ) );         
   
-    thrust::sort_by_key(thrust::device, d_pp_pnt_idx,d_pp_pnt_idx+num_pp_pairs,d_pp_poly_idx);
+    auto exec_policy = rmm::exec_policy(stream);  
+    thrust::sort_by_key(exec_policy->on(stream), d_pp_pnt_idx,d_pp_pnt_idx+num_pp_pairs,d_pp_poly_idx);
 
-    uint32_t *h_pp_poly_idx=NULL;
-    h_pp_poly_idx=new uint32_t[num_pp_pairs];
-    HANDLE_CUDA_ERROR( cudaMemcpy( h_pp_poly_idx, d_pp_poly_idx, num_pp_pairs * sizeof(uint32_t), cudaMemcpyDeviceToHost) );
+if(0)
+{
+    thrust::device_ptr<uint32_t> pnt_ptr= thrust::device_pointer_cast(d_pp_pnt_idx);
+    thrust::device_ptr<uint32_t> poly_ptr= thrust::device_pointer_cast(d_pp_poly_idx);
+    
+    std::cout<<"d_pp_pnt_idx"<<std::endl;
+    thrust::copy(pnt_ptr,pnt_ptr+num_pp_pairs,std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl;
+    std::cout<<"d_pp_poly_idx"<<std::endl;
+    thrust::copy(poly_ptr,poly_ptr+num_pp_pairs,std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl;    
+}
 
+    uint32_t *c_pp_poly_idx=new uint32_t[num_pp_pairs];
+    CUDF_EXPECTS(c_pp_poly_idx!=nullptr, "Allocating memory for c_pp_poly_idx failed");
+    HANDLE_CUDA_ERROR( cudaMemcpy( c_pp_poly_idx, d_pp_poly_idx, num_pp_pairs * sizeof(uint32_t), cudaMemcpyDeviceToHost ) ); 
+    
     rmm::device_buffer *db_pnt_lb=new rmm::device_buffer(num_pp_pairs* sizeof(uint32_t),stream,mr);
     CUDF_EXPECTS(db_pnt_lb!=nullptr, "Error allocating memory for lower bounds array in serching polygon idx based on point idx");
     uint32_t *d_pnt_lb=static_cast<uint32_t *>(db_pnt_lb->data());
@@ -73,21 +98,21 @@ if(0)
     std::cout<<"after H->D transfer.................."<<std::endl;
 
     //uncoment to write debug info to file
-    /*FILE *fp=NULL;
+    FILE *fp=NULL;
     if((fp=fopen("debug.csv","w"))==NULL)
     {
         printf("can not open debug.txt for output");
         exit(-1);
-    }*/
+    }
 
-    FILE *fp=stdout;
+    //FILE *fp=stdout;
     uint32_t bpos=0,epos=h_pnt_len_vec[0], num_mis_match=0,num_not_found=0;
     for(uint32_t i=0;i<num_search_pnt;i++)
     {
         //printf("i=%d idx=%d sign=%d lb=%d ub=%d\n",i,h_pnt_search_idx[i],h_pnt_sign[i],h_pnt_lb[i],h_pnt_ub[i]);
         if(!h_pnt_sign[i])
         {
-            //printf("i=%d pntid=%d does not hit\n",i,h_pnt_search_idx[i]);
+            printf("NOT FOUND: i=%d pntid=%d does not hit\n",i,h_pnt_search_idx[i]);
             uint32_t pntid=h_pnt_search_idx[i];
             uint32_t polyid=h_org_poly_idx_vec[h_poly_search_idx[i]];
             fprintf(fp,"%d, %10.2f, %10.2f, -1, %d\n",pntid,h_pnt_x[pntid],h_pnt_y[pntid],polyid);
@@ -97,7 +122,7 @@ if(0)
         {
             std::set<uint32_t> gpu_set;
             for(uint32_t j=h_pnt_lb[i];j<h_pnt_ub[i];j++)
-                gpu_set.insert(h_org_poly_idx_vec[h_pp_poly_idx[j]]);
+                gpu_set.insert(h_org_poly_idx_vec[c_pp_poly_idx[j]]);
             std::set<uint32_t> cpu_set;
             for(uint32_t j=bpos;j<epos;j++)
                 cpu_set.insert(h_org_poly_idx_vec[h_poly_search_idx[j]]);
@@ -112,21 +137,23 @@ if(0)
                 printf("gpu_set\n");
                 thrust::copy(gpu_set.begin(),gpu_set.end(),std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl; 
                 printf("cpu_set\n");
-}               thrust::copy(cpu_set.begin(),cpu_set.end(),std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl; 
+                thrust::copy(cpu_set.begin(),cpu_set.end(),std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl; 
+}
 
                 fprintf(fp,"%d,%10.2f,%10.2f",pntid,h_pnt_x[pntid],h_pnt_y[pntid]);
                 uint32_t gpu_len=h_pnt_ub[i]-h_pnt_lb[i];
-                std::string ss="";
+                std::string ss="GPU:";
                 if(gpu_len>0)
                 {
-                    ss+=std::to_string(h_org_poly_idx_vec[h_pp_poly_idx[h_pnt_lb[i]]]);
+                    ss+=std::to_string(h_org_poly_idx_vec[c_pp_poly_idx[h_pnt_lb[i]]]);
                     for(uint32_t j=1;j<gpu_len;j++)
-                    ss+=("|"+std::to_string(h_org_poly_idx_vec[h_pp_poly_idx[h_pnt_lb[i]+j]]));
+                        ss+=("|"+std::to_string(h_org_poly_idx_vec[c_pp_poly_idx[h_pnt_lb[i]+j]]));
                 }
                 else
                    ss="-1";
                 fprintf(fp,",%s",ss.c_str());
-                ss="";
+                
+                ss="CPU:";
                 if(h_pnt_len_vec[i]>0)
                 {
                    ss+=std::to_string(h_org_poly_idx_vec[h_poly_search_idx[bpos]]);
@@ -149,7 +176,7 @@ if(0)
     delete[] h_pnt_lb;
     delete[] h_pnt_ub;
     delete[] h_pnt_sign;
-    delete[] h_pp_poly_idx;    
+    delete[] c_pp_poly_idx;    
 
     std::cout<<"compute_mismatch: num_pp_pairs="<<num_pp_pairs<<std::endl;
     std::cout<<"compute_mismatch: num_search_pnt="<<num_search_pnt<<std::endl;

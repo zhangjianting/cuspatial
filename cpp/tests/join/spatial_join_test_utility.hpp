@@ -24,7 +24,7 @@ void gen_rand_idx(std::vector<uint32_t>& indices,uint32_t num_counts, uint32_t n
 
 bool compute_mismatch(uint32_t num_pp_pairs,const std::vector<uint32_t>&  org_poly_idx_vec,
     const uint32_t *h_pnt_search_idx,const std::vector<uint32_t>& h_pnt_len_vec,const uint32_t * h_poly_search_idx,
-    uint32_t * d_pp_pnt_idx,uint32_t *d_pp_poly_idx,
+    const uint32_t * h_pp_pnt_idx,const uint32_t *h_pp_poly_idx,
     const double *h_pnt_x, const double * h_pnt_y,
     rmm::mr::device_memory_resource* mr, cudaStream_t stream);
 

@@ -101,11 +101,16 @@ set(SPATIAL_JOIN_REFINEMENT_LARGE_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/join/pip_refine_test_large.cu")
 ConfigureTest(SPATIAL_JOIN_REFINEMENT_LARGE_TEST "${SPATIAL_JOIN_REFINEMENT_LARGE_SRC}")
 
-set(SPATIAL_JOIN_NYCTAXI_SRC
+set(SPATIAL_JOIN_NYCTAXI_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_test.cu"  
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cpp")
+ConfigureTest(SPATIAL_JOIN_NYCTAXI_TEST "${SPATIAL_JOIN_NYCTAXI_TEST_SRC}")
+
+set(SPATIAL_JOIN_NYCTAXI_VERIFY_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_verify.cu"  
     "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu"
-    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_nyctaxi_test.cu")    
-ConfigureTest(SPATIAL_JOIN_NYCTAXIE_TEST "${SPATIAL_JOIN_NYCTAXI_SRC}")
+    "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu")  
+ConfigureTest(SPATIAL_JOIN_NYCTAXI_VERIFY "${SPATIAL_JOIN_NYCTAXI_VERIFY_SRC}")
 
 set(BOUNDING_BOX_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/spatial/bounding_box_test.cu")
