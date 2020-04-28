@@ -9,7 +9,7 @@ import time
 
 import shapefile
 from shapely.geometry import Point, Polygon
-
+from cudf import Series, read_csv
 import cuspatial
 
 data_dir = "/home/jianting/cuspatial/data/"
@@ -35,7 +35,7 @@ pnty = pnt_lat.data.to_array()
 
 start = time.time()
 mis_match = 0
-for i in range(pnt_lon.data.size):
+for i in range(10000):
     pt = Point(pntx[i], pnty[i])
     res = 0
     for j in range(len(plys)):
