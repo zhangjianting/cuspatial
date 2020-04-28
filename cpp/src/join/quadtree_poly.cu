@@ -63,7 +63,7 @@ std::vector<std::unique_ptr<cudf::column>> dowork(
     auto exec_policy = rmm::exec_policy(stream);
 
     rmm::device_buffer *db_poly_bbox=new rmm::device_buffer(num_poly* sizeof(SBBox<T>),stream,mr);
-    CUDF_EXPECTS(db_poly_bbox!=nullptr, "Error allocating memory for polygon bounding boxes on device");
+    CUDF_EXPECTS(db_poly_bbox!=nullptr, "Error allocating memory for polygon/polyline bounding boxes on device");
     SBBox<T> *d_poly_sbbox=static_cast<SBBox<T> *>(db_poly_bbox->data());
 
  if(0)
@@ -106,7 +106,7 @@ if(0)
     uint32_t num_top_lev_children=thrust::count_if(exec_policy->on(stream),d_p_qtlev,
         d_p_qtlev+num_node,thrust::placeholders::_1==0);  
 
-    //the matched quadrant-polygon pairs are dynamic and can not be pre-allocated in a fixed manner
+    //the matched quadrant-polygon/polyline pairs are dynamic and can not be pre-allocated in a fixed manner
     // relevant arrays are resized accordingly for memory efficiency 
     
     //{_lev,_type,_poly_idx,_quad_idx}_out are for outputs for matched paris with an initial capcity of init_len
@@ -130,7 +130,7 @@ if(0)
     uint8_t *d_pq_type_out=static_cast<uint8_t *>(db_pq_type_out->data());
 
     rmm::device_buffer *db_poly_idx_out = new rmm::device_buffer(curr_cap* sizeof(uint32_t),stream,mr);
-    CUDF_EXPECTS(db_poly_idx_out!=nullptr, "Error allocating memory for permanent polygon index array on device");
+    CUDF_EXPECTS(db_poly_idx_out!=nullptr, "Error allocating memory for permanent polygon/polyline index array on device");
     uint32_t *d_poly_idx_out=static_cast<uint32_t *>(db_poly_idx_out->data());
 
     rmm::device_buffer *db_quad_idx_out = new rmm::device_buffer(curr_cap* sizeof(uint32_t),stream,mr);
@@ -157,7 +157,7 @@ if(0)
     uint8_t *d_pq_type_temp=static_cast<uint8_t *>(db_pq_type_temp->data());
 
     rmm::device_buffer *db_poly_idx_temp = new rmm::device_buffer(num_pair* sizeof(uint32_t),stream,mr);
-    CUDF_EXPECTS(db_poly_idx_temp!=nullptr, "Error allocating memory for temporal polygon index array on device");
+    CUDF_EXPECTS(db_poly_idx_temp!=nullptr, "Error allocating memory for temporal polygon/polyline index array on device");
     uint32_t *d_poly_idx_temp=static_cast<uint32_t *>(db_poly_idx_temp->data());
 
     rmm::device_buffer *db_quad_idx_temp = new rmm::device_buffer(num_pair* sizeof(uint32_t),stream,mr);
@@ -168,15 +168,15 @@ if(0)
     auto pair_output_temp_iter=thrust::make_zip_iterator(
         thrust::make_tuple(d_pq_lev_temp,d_pq_type_temp,d_poly_idx_temp,d_quad_idx_temp));
 
-    //paring up all top level quadrants and all polygons and store the result in pair_output_temp_iter
+    //paring up all top level quadrants and all polygons/polylines and store the result in pair_output_temp_iter
     thrust::transform(exec_policy->on(stream),pair_counting_iter,pair_counting_iter+num_pair,pair_output_temp_iter,
         pairwise_test_intersection<T>(num_level,num_top_lev_children,aoi_bbox,scale,d_p_qtkey,d_p_qtlev,d_p_qtsign,d_poly_sbbox));
 
-    //copy intersected (quadrant,polygon) pairs that involve leaf qudrants to outputs directly (type 0)
+    //copy intersected (quadrant,polygon/polyline) pairs that involve leaf qudrants to outputs directly (type 0)
     uint32_t num_leaf_pair=thrust::copy_if(exec_policy->on(stream),pair_output_temp_iter,pair_output_temp_iter+num_pair,
         pair_output_iter+output_nodes_pos,qt_is_type(0))-(pair_output_iter+output_nodes_pos);
 
-    //remove all the (quadrant,polygon) pairs that quadrants do not intersect with polygon bboxes
+    //remove all the (quadrant,polygon/polyline) pairs that quadrants do not intersect with polygon/polyline bboxes
     uint32_t num_nonleaf_pair=thrust::remove_if(exec_policy->on(stream),pair_output_temp_iter,pair_output_temp_iter+num_pair,
         pair_output_temp_iter,qt_not_type(1))-pair_output_temp_iter;
 
@@ -216,7 +216,7 @@ if(0)
         uint8_t *d_pq_type_expanded=static_cast<uint8_t *>(db_pq_type_expanded->data());
 
         rmm::device_buffer *db_poly_idx_expanded = new rmm::device_buffer(num_pair* sizeof(uint32_t),stream,mr);
-        CUDF_EXPECTS(db_poly_idx_expanded!=nullptr, "Error allocating memory for expanded polygon index array on device");
+        CUDF_EXPECTS(db_poly_idx_expanded!=nullptr, "Error allocating memory for expanded polygon/polyline index array on device");
         uint32_t *d_poly_idx_expanded=static_cast<uint32_t *>(db_poly_idx_expanded->data());
 
         rmm::device_buffer *db_quad_idx_expanded = new rmm::device_buffer(num_pair* sizeof(uint32_t),stream,mr);
@@ -264,9 +264,9 @@ if(0)
         //d_seq_pos is no long needed; delete related device_buffer 
         delete db_seq_pos; db_seq_pos=nullptr;
 
-        //testing intersection of quadrnats and polygon bboxes, results stored in d_pq_type_expanded
+        //testing intersection of quadrnats and polygon/polyline bboxes, results stored in d_pq_type_expanded
         //three possible types: intersection and leaf nodes==>0, intersection and non-leaf nodes==>1, non-intersection==>2
-        //pair_output_expanded_iter has four components; polygon/quadrant idx repeated to work with copy_if/remove_if next 
+        //pair_output_expanded_iter has four components; polygon/polyline-quadrant idx repeated to work with copy_if/remove_if next 
         auto pq_pair_iterator=thrust::make_zip_iterator(thrust::make_tuple(d_poly_idx_expanded,d_quad_idx_expanded));
         thrust::transform(exec_policy->on(stream),pq_pair_iterator,pq_pair_iterator+num_pair,pair_output_expanded_iter,
             twolist_test_intersection<T>(num_level,aoi_bbox,scale,d_p_qtkey,d_p_qtlev,d_p_qtsign,d_poly_sbbox));
@@ -340,7 +340,7 @@ if(0)
             d_quad_idx_out=d_quad_idx_increased;
 
             rmm::device_buffer *db_poly_idx_increased = new rmm::device_buffer(curr_cap* sizeof(uint32_t),stream,mr);
-            CUDF_EXPECTS(db_poly_idx_increased!=nullptr,"Error allocating memory for increased polygon index array on device");
+            CUDF_EXPECTS(db_poly_idx_increased!=nullptr,"Error allocating memory for increased polygon/polyline index array on device");
             uint32_t * d_poly_idx_increased=static_cast<uint32_t *>(db_poly_idx_increased->data());
             HANDLE_CUDA_ERROR( cudaMemcpy( (void *)d_poly_idx_increased, (void *)d_poly_idx_out, 
                  output_nodes_pos * sizeof(uint32_t), cudaMemcpyDeviceToDevice ) );
@@ -359,13 +359,13 @@ if(0)
     //d_poly_bbox is no longer needed, delete the associated device buffer and relase memory 
     delete db_poly_bbox; db_poly_bbox=nullptr;
 
-    //allocate columns for paris of polygon offsets and quadrant offsets as the final output
+    //allocate columns for paris of polygon/polyline offsets and quadrant offsets as the final output
     //lev and type are not needed in the output
     //note only the first output_nodes_pos elements are copied to output columns
     std::unique_ptr<cudf::column> poly_idx_col = cudf::make_numeric_column(
        cudf::data_type(cudf::type_id::INT32), output_nodes_pos,cudf::mask_state::UNALLOCATED,  stream, mr);
     uint32_t *d_pq_poly_idx=cudf::mutable_column_device_view::create(poly_idx_col->mutable_view(), stream)->data<uint32_t>();
-    CUDF_EXPECTS(d_pq_poly_idx!=nullptr,"Error in accessing data array of polygon index column"); 
+    CUDF_EXPECTS(d_pq_poly_idx!=nullptr,"Error in accessing data array of polygon/polyline index column"); 
     thrust::copy(exec_policy->on(stream),d_poly_idx_out,d_poly_idx_out+output_nodes_pos,d_pq_poly_idx);
 
     std::unique_ptr<cudf::column> quad_idx_col = cudf::make_numeric_column(
@@ -465,10 +465,10 @@ std::unique_ptr<cudf::experimental::table> quad_bbox_join(
  
     CUDF_EXPECTS(quadtree.num_columns()==5,"quadtree table must have 5 columns");  
     
-    CUDF_EXPECTS(poly_bbox.num_columns()==4,"polygon bbox table must have 4 columns");  
+    CUDF_EXPECTS(poly_bbox.num_columns()==4,"polygon/polyline bbox table must have 4 columns");  
     
     CUDF_EXPECTS(quadtree.num_rows()>0 && poly_bbox.num_rows()>0,
-        "neither quadtree table nor polygon bbox table can be empty");
+        "neither quadtree table nor polygon/polyline bbox table can be empty");
     
     CUDF_EXPECTS(x1<x2 && y1<y2, "invalid bounding box (x1,y1,x2,y2)");
     
