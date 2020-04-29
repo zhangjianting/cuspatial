@@ -81,7 +81,6 @@ TEST_F(QuadtreepolylineBBoxJoinTest, test_small)
     uint32_t ply_spos[]={4,10,14,19};
     double ply_x[] = {2.488450,1.333584,3.460720,2.488450,5.039823,5.561707,7.103516,7.190674,5.998939,5.039823,5.998939,5.573720,6.703534,5.998939,2.088115,1.034892,2.415080,3.208660,2.088115};
     double ply_y[] = {5.856625,5.008840,4.586599,5.856625,4.229242,1.825073,1.503906,4.025879,5.653384,4.229242,1.235638,0.197808,0.086693,1.235638,4.541529,3.530299,2.896937,3.745936,4.541529};
-    uint32_t num_poly=sizeof(ply_fpos)/sizeof(uint32_t);
     uint32_t num_poly=sizeof(ply_spos)/sizeof(uint32_t);
     uint32_t num_vertex=sizeof(ply_x)/sizeof(double);
     assert(num_vertex==sizeof(ply_y)/sizeof(double));
@@ -105,7 +104,7 @@ TEST_F(QuadtreepolylineBBoxJoinTest, test_small)
     assert(d_poly_y!=nullptr);
     HANDLE_CUDA_ERROR( cudaMemcpy( d_poly_y, ply_y, num_vertex * sizeof(double), cudaMemcpyHostToDevice ) );
    
-    std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(*fpos_col,*spos_col,*x_col,*y_col,0.5);
+    std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(*spos_col,*x_col,*y_col,2);
     
     std::cout<<"polyline bbox="<<bbox_tbl->view().num_rows()<<std::endl;
     
@@ -138,8 +137,8 @@ if(1)
     thrust::copy(quad_idx_ptr,quad_idx_ptr+num_pq_pairs,std::ostream_iterator<const uint32_t>(std::cout, " "));std::cout<<std::endl;
 }
 
-    uint32_t c_poly_idx[]={0, 3, 1, 2, 1, 1, 3, 3};
-    uint32_t c_quad_idx[]={2, 2, 6, 6, 12, 13, 10, 11};
+    uint32_t c_poly_idx[]={0, 1, 3, 1, 2, 3, 3, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
+    uint32_t c_quad_idx[]={2, 2, 2, 6, 6, 3, 6, 10, 11, 8 ,10 ,12, 13, 8, 10, 12, 13 ,8, 9, 10, 11};
     CUDF_EXPECTS(sizeof(c_poly_idx)/sizeof(uint32_t)==num_pq_pairs,"CPU and GPU results must agree on column sizes");
 
     uint32_t *h_poly_idx=new uint32_t[num_pq_pairs];
