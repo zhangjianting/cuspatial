@@ -42,7 +42,7 @@
 #include <utility/bbox_thrust.cuh>
 
 #include <cuspatial/quadtree.hpp>
-#include <cuspatial/bounding_box.hpp>
+#include <cuspatial/polygon_bbox.hpp>
 #include <cuspatial/spatial_jion.hpp>
 
 #include "spatial_join_test_utility.hpp"
