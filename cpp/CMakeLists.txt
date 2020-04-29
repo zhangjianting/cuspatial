@@ -279,7 +279,8 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 add_library(cuspatial SHARED
 	    src/join/pip_refine.cu
 	    src/join/quadtree_poly.cu
-	    src/spatial/bounding_box.cu
+	    src/spatial/polygon_bbox.cu
+	    src/spatial/polyline_bbox.cu
 	    src/indexing/quadtree.cu
             src/io/shp/polygon_shapefile_reader.cu
             src/io/soa/polygon_soa_reader.cu

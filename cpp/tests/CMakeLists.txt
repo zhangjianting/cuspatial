@@ -112,9 +112,13 @@ set(SPATIAL_JOIN_NYCTAXI_VERIFY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/join/spatial_join_test_utility.cu")  
 ConfigureTest(SPATIAL_JOIN_NYCTAXI_VERIFY "${SPATIAL_JOIN_NYCTAXI_VERIFY_SRC}")
 
-set(BOUNDING_BOX_TEST_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/bounding_box_test.cu")
-ConfigureTest(BOUNDING_BOX_TEST "${BOUNDING_BOX_TEST_SRC}")
+set(POLYGON_BBOX_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/polygon_bbox_test.cu")
+ConfigureTest(POLYGON_BBOX_TEST "${POLYGON_BBOX_TEST_SRC}")
+
+set(POLYLINE_BBOX_TEST_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/spatial/polyline_bbox_test.cu")
+ConfigureTest(POLYLINE_BBOX_TEST "${POLYLINE_BBOX_TEST_SRC}")
 
 set(QUADTREE_POINT_TEST_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/indexing/quadtree_point_test.cu")
