@@ -41,7 +41,7 @@ TEST_F(BoundingBoxTest, test_empty)
     cudf::column spos_col;
     cudf::column x_col,y_col;
 
-    EXPECT_THROW (cuspatial::polyline_bbox(spos_col,x_col,y_col),cudf::logic_error);    
+    EXPECT_THROW (cuspatial::polyline_bbox(spos_col,x_col,y_col,0),cudf::logic_error);    
 }
 
 TEST_F(BoundingBoxTest, test_one)
@@ -50,19 +50,18 @@ TEST_F(BoundingBoxTest, test_one)
     double poly_x[] = {2.488450,1.333584,3.460720,2.488450};
     double poly_y[] = {5.856625,5.008840,4.586599,5.856625};
 
-    uint32_t num_poly=sizeof(poly_fpos)/sizeof(uint32_t);
-    uint32_t num_ring=sizeof(poly_spos)/sizeof(uint32_t);
+    uint32_t num_poly=sizeof(poly_spos)/sizeof(uint32_t);
     uint32_t num_vertex=sizeof(poly_x)/sizeof(double);   
-    std::cout<<"num_poly="<<num_poly<<",num_ring="<<num_ring<<",num_vertex="<<num_vertex<<std::endl;
+    std::cout<<"num_poly="<<num_poly<<",num_vertex="<<num_vertex<<std::endl;
 
     cudaStream_t stream=0;
     rmm::mr::device_memory_resource* mr=rmm::mr::get_default_resource();
     
-    std::unique_ptr<cudf::column> rpos_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::INT32}, 
-        num_ring, cudf::mask_state::UNALLOCATED, stream, mr );      
-    uint32_t *d_p_spos=cudf::mutable_column_device_view::create(rpos_col->mutable_view(), stream)->data<uint32_t>();
+    std::unique_ptr<cudf::column> spos_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::INT32}, 
+        num_poly, cudf::mask_state::UNALLOCATED, stream, mr );      
+    uint32_t *d_p_spos=cudf::mutable_column_device_view::create(spos_col->mutable_view(), stream)->data<uint32_t>();
     assert(d_p_spos!=nullptr);
-    HANDLE_CUDA_ERROR( cudaMemcpy( d_p_spos, poly_spos, num_ring * sizeof(uint32_t), cudaMemcpyHostToDevice ) ); 
+    HANDLE_CUDA_ERROR( cudaMemcpy( d_p_spos, poly_spos, num_poly * sizeof(uint32_t), cudaMemcpyHostToDevice ) ); 
 
     std::unique_ptr<cudf::column> x_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::FLOAT64}, 
         num_vertex, cudf::mask_state::UNALLOCATED, stream, mr );      
@@ -77,7 +76,7 @@ TEST_F(BoundingBoxTest, test_one)
     HANDLE_CUDA_ERROR( cudaMemcpy( d_p_y, poly_y, num_vertex * sizeof(double), cudaMemcpyHostToDevice ) ); 
 
     //GPU computation
-    doublr R=0;
+    double R=0;
     std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(
         *spos_col,*x_col,*y_col,R);
 
@@ -114,19 +113,19 @@ TEST_F(BoundingBoxTest, test_small)
     
     uint32_t num_poly=sizeof(poly_spos)/sizeof(uint32_t);
     uint32_t num_vertex=sizeof(poly_x)/sizeof(double);   
-    std::cout<<"num_poly="<<num_poly<<",num_ring="<<num_ring<<",num_vertex="<<num_vertex<<std::endl;
+    std::cout<<"num_poly="<<num_poly<<",num_vertex="<<num_vertex<<std::endl;
 
     CUDF_EXPECTS(num_vertex==sizeof(poly_y)/sizeof(double),"x/y should have same length");
-    CUDF_EXPECTS(num_vertex=poly_spos[num_ring-1],"# of vertex should be the same as the last element of the ring array");
+    CUDF_EXPECTS(num_vertex=poly_spos[num_poly-1],"# of vertex should be the same as the last element of the ring array");
     
     cudaStream_t stream=0;
     rmm::mr::device_memory_resource* mr=rmm::mr::get_default_resource();
     
     std::unique_ptr<cudf::column> spos_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::INT32}, 
-        num_ring, cudf::mask_state::UNALLOCATED, stream, mr );      
-    uint32_t *d_p_spos=cudf::mutable_column_device_view::create(rpos_col->mutable_view(), stream)->data<uint32_t>();
+        num_poly, cudf::mask_state::UNALLOCATED, stream, mr );      
+    uint32_t *d_p_spos=cudf::mutable_column_device_view::create(spos_col->mutable_view(), stream)->data<uint32_t>();
     assert(d_p_spos!=nullptr);
-    HANDLE_CUDA_ERROR( cudaMemcpy( d_p_spos, poly_spos, num_ring * sizeof(uint32_t), cudaMemcpyHostToDevice ) ); 
+    HANDLE_CUDA_ERROR( cudaMemcpy( d_p_spos, poly_spos, num_poly * sizeof(uint32_t), cudaMemcpyHostToDevice ) ); 
 
     std::unique_ptr<cudf::column> x_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::FLOAT64}, 
         num_vertex, cudf::mask_state::UNALLOCATED, stream, mr );      
@@ -141,10 +140,9 @@ TEST_F(BoundingBoxTest, test_small)
     HANDLE_CUDA_ERROR( cudaMemcpy( d_p_y, poly_y, num_vertex * sizeof(double), cudaMemcpyHostToDevice ) ); 
 
     //GPU computation
-    double R=0.5
-    std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(
-        *fpos_col,*rpos_col,*x_col,*y_col,R);
-
+    double R=0.5;
+    std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(*spos_col,*x_col,*y_col,R);
+        
     CUDF_EXPECTS(bbox_tbl->view().num_columns()==4, "bbox table must have 4 columns");
     CUDF_EXPECTS((uint32_t)(bbox_tbl->num_rows())==num_poly,"resutling #of bounding boxes must be the same as # of polygons");
 

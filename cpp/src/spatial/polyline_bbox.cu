@@ -31,7 +31,7 @@
 #include <utility/helper_thrust.cuh>
 #include <utility/bbox_thrust.cuh>
 #include <utility/bbox_thrust.cuh>
-#include <cuspatial/bounding_box.hpp>
+#include <cuspatial/polyline_bbox.hpp>
 
 namespace
 {
@@ -46,14 +46,14 @@ struct bounding_box_processor {
         rmm::mr::device_memory_resource* mr,
         cudaStream_t stream)
     {
-        uint32_t num_poly=fpos.size();
+        uint32_t num_poly=spos.size();
         uint32_t num_vertex=x.size();
 
         std::cout<<"bounding_box_processor: num_poly="<<num_poly<<",num_vertex="<<num_vertex<<std::endl;
 
         auto exec_policy = rmm::exec_policy(stream);
 
-        const uint32_t *d_ply_spos=fpos.data<uint32_t>();
+        const uint32_t *d_ply_spos=spos.data<uint32_t>();
         const T *d_ply_x=x.data<T>();
         const T *d_ply_y=y.data<T>();
 
@@ -67,25 +67,19 @@ struct bounding_box_processor {
         CUDF_EXPECTS(db_vertex_pid!=nullptr, "error allocating temporal memory for vertex id array");
         uint32_t *d_vertex_pid=static_cast<uint32_t *>(db_vertex_pid->data());
 
-        HANDLE_CUDA_ERROR( cudaMemset(d_first_vertex_pos,0,num_poly*sizeof(uint32_t)) );
         HANDLE_CUDA_ERROR( cudaMemset(d_vertex_pid,0,num_vertex*sizeof(uint32_t)) );
 
 if(0)
 {
         printf("segment pos prefix sum\n"); 
-        thrust::device_ptr<const uint32_t> d_fpos_ptr=thrust::device_pointer_cast(d_ply_spos);
-        thrust::copy(d_fpos_ptr,d_fpos_ptr+num_poly,std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl;
-
-        printf("vertex pos prefix sum\n"); 
-        thrust::device_ptr<const uint32_t> d_rpos_ptr=thrust::device_pointer_cast(d_ply_rpos);
-        thrust::copy(d_rpos_ptr,d_rpos_ptr+num_ring,std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl;
+        thrust::device_ptr<const uint32_t> d_spos_ptr=thrust::device_pointer_cast(d_ply_spos);
+        thrust::copy(d_spos_ptr,d_spos_ptr+num_poly,std::ostream_iterator<uint32_t>(std::cout, " "));std::cout<<std::endl;
 }
 
-
-        thrust::adjacent_difference(exec_policy->on(stream), d_ply_spos,d_ply_spos+num_poly,db_temp_spos);
-        thrust::exclusive_scan(exec_policy->on(stream),db_temp_spos,db_temp_spos+num_poly,db_temp_spos);
+        thrust::adjacent_difference(exec_policy->on(stream), d_ply_spos,d_ply_spos+num_poly,d_temp_spos);
+        thrust::exclusive_scan(exec_policy->on(stream),d_temp_spos,d_temp_spos+num_poly,d_temp_spos);
         thrust::scatter(exec_policy->on(stream),thrust::make_counting_iterator(0),
-            thrust::make_counting_iterator(0)+num_poly,db_temp_spos,d_vertex_pid);
+            thrust::make_counting_iterator(0)+num_poly,d_temp_spos,d_vertex_pid);
         thrust::inclusive_scan(exec_policy->on(stream),d_vertex_pid,d_vertex_pid+num_vertex,d_vertex_pid,thrust::maximum<int>());
         delete db_temp_spos; db_temp_spos=nullptr;
 
@@ -103,10 +97,9 @@ if(0)
         
         auto d_vertex_iter=thrust::make_zip_iterator(thrust::make_tuple(d_ply_x,d_ply_y));
 
-        //reuse d_first_vertex_pos to store sequential polygon index
         uint32_t num_bbox=thrust::reduce_by_key(exec_policy->on(stream),d_vertex_pid,d_vertex_pid+num_vertex,
             thrust::make_transform_iterator(d_vertex_iter,bbox_transformation<T>()),
-            d_first_vertex_pos,d_p_bbox,thrust::equal_to<uint32_t>(),bbox_reduction<T>()).first-d_first_vertex_pos;
+            d_vertex_pid,d_p_bbox,thrust::equal_to<uint32_t>(),bbox_reduction<T>()).first-d_vertex_pid;
         std::cout<<"num_poly="<<num_poly<<",num_bbox="<<num_bbox<<std::endl;
 
         CUDF_EXPECTS(num_poly==num_bbox,"#of bbox after reduction should be the same as # of polys");
@@ -151,8 +144,9 @@ if(0)
 
     template<typename T, std::enable_if_t<!std::is_floating_point<T>::value >* = nullptr>
     std::unique_ptr<cudf::experimental::table> operator()(
-        const cudf::column_view& fpos,const cudf::column_view& rpos,
+        const cudf::column_view& spos,
         const cudf::column_view& x,const cudf::column_view& y,
+        double R,
         rmm::mr::device_memory_resource* mr,
         cudaStream_t stream)
     {
