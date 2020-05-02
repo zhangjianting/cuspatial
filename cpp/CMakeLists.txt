@@ -277,6 +277,7 @@ link_directories("${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}" # CMAKE_CUDA_IMPLICIT
 # - library targets -------------------------------------------------------------------------------
 
 add_library(cuspatial SHARED
+	    src/join/p2p_nn_refine.cu
 	    src/join/pip_refine.cu
 	    src/join/quadtree_poly.cu
 	    src/spatial/polygon_bbox.cu

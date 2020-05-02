@@ -71,10 +71,12 @@ TEST_F(QuadtreepolylineBBoxJoinTest, test_small)
     HANDLE_CUDA_ERROR( cudaMemcpy( d_pnt_x, xx, point_len * sizeof(double), cudaMemcpyHostToDevice ) );
     HANDLE_CUDA_ERROR( cudaMemcpy( d_pnt_y, yy, point_len * sizeof(double), cudaMemcpyHostToDevice ) );
           
-    cudf::mutable_column_view x(cudf::data_type{cudf::FLOAT64},point_len,d_pnt_x);
-    cudf::mutable_column_view y(cudf::data_type{cudf::FLOAT64},point_len,d_pnt_y);
-    
-    std::unique_ptr<cudf::experimental::table> quadtree= cuspatial::quadtree_on_points(x,y,x1,y1,x2,y2, scale,num_levels, min_size);
+    cudf::mutable_column_view pnt_x_view(cudf::data_type{cudf::FLOAT64},point_len,d_pnt_x);
+    cudf::mutable_column_view pnt_y_view(cudf::data_type{cudf::FLOAT64},point_len,d_pnt_y);
+    const cudf::table_view pnt_view({pnt_x_view,pnt_y_view});
+   
+    std::unique_ptr<cudf::experimental::table> quadtree= cuspatial::quadtree_on_points(
+        pnt_x_view,pnt_y_view,x1,y1,x2,y2, scale,num_levels, min_size);
     std::cout<<"quadtree num columns="<<quadtree->view().num_columns()<<std::endl;
     std::cout<<"quadtree num rows="<<quadtree->view().num_rows()<<std::endl;
     
@@ -92,20 +94,20 @@ TEST_F(QuadtreepolylineBBoxJoinTest, test_small)
     assert(d_p_spos!=nullptr);
     HANDLE_CUDA_ERROR( cudaMemcpy( d_p_spos, ply_spos, num_poly * sizeof(uint32_t), cudaMemcpyHostToDevice ) );
 
-    std::unique_ptr<cudf::column> x_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::FLOAT64}, 
+    std::unique_ptr<cudf::column> poly_x_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::FLOAT64}, 
         num_vertex, cudf::mask_state::UNALLOCATED, stream, mr );      
-    double *d_poly_x=cudf::mutable_column_device_view::create(x_col->mutable_view(), stream)->data<double>();
+    double *d_poly_x=cudf::mutable_column_device_view::create(poly_x_col->mutable_view(), stream)->data<double>();
     assert(d_pnt_x!=nullptr);
     HANDLE_CUDA_ERROR( cudaMemcpy( d_poly_x, ply_x, num_vertex * sizeof(double), cudaMemcpyHostToDevice ) );
 
-    std::unique_ptr<cudf::column> y_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::FLOAT64},
+    std::unique_ptr<cudf::column> poly_y_col = cudf::make_numeric_column( cudf::data_type{cudf::type_id::FLOAT64},
         num_vertex, cudf::mask_state::UNALLOCATED, stream, mr );      
-    double *d_poly_y=cudf::mutable_column_device_view::create(y_col->mutable_view(), stream)->data<double>();
+    double *d_poly_y=cudf::mutable_column_device_view::create(poly_y_col->mutable_view(), stream)->data<double>();
     assert(d_poly_y!=nullptr);
     HANDLE_CUDA_ERROR( cudaMemcpy( d_poly_y, ply_y, num_vertex * sizeof(double), cudaMemcpyHostToDevice ) );
    
     double R=2.0;
-    std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(*spos_col,*x_col,*y_col,R);
+    std::unique_ptr<cudf::experimental::table> bbox_tbl=cuspatial::polyline_bbox(*spos_col,*poly_x_col,*poly_y_col,R);
     
     std::cout<<"polyline bbox="<<bbox_tbl->view().num_rows()<<std::endl;
     
@@ -138,23 +140,32 @@ if(1)
     thrust::copy(quad_idx_ptr,quad_idx_ptr+num_pq_pairs,std::ostream_iterator<const uint32_t>(std::cout, " "));std::cout<<std::endl;
 }
 
-    uint32_t c_poly_idx[]={0, 1, 3, 1, 2, 3, 3, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
-    uint32_t c_quad_idx[]={2, 2, 2, 6, 6, 3, 6, 10, 11, 8 ,10 ,12, 13, 8, 10, 12, 13 ,8, 9, 10, 11};
-    CUDF_EXPECTS(sizeof(c_poly_idx)/sizeof(uint32_t)==num_pq_pairs,"CPU and GPU results must agree on column sizes");
+    std::unique_ptr<cudf::experimental::table> p2pnnd_pair_tbl=cuspatial::p2p_nn_refine(
+        pq_pair_view,quad_view,pnt_view,spos_col->view(),poly_x_col->view(),poly_y_col->view());
 
-    uint32_t *h_poly_idx=new uint32_t[num_pq_pairs];
-    uint32_t *h_quad_idx=new uint32_t[num_pq_pairs];
-    assert(h_poly_idx!=nullptr && h_quad_idx!=nullptr);
-    EXPECT_EQ(cudaMemcpy(h_poly_idx,d_poly_idx,num_pq_pairs*sizeof(uint32_t),cudaMemcpyDeviceToHost),cudaSuccess);
-    EXPECT_EQ(cudaMemcpy(h_quad_idx,d_quad_idx,num_pq_pairs*sizeof(uint32_t),cudaMemcpyDeviceToHost),cudaSuccess);
+    cudf::table_view   p2pnnd_pair_view= p2pnnd_pair_tbl->view();
+    CUDF_EXPECTS(p2pnnd_pair_view.num_rows()==point_len,"resulting point-to-polyline pairs should be the same as number of points");
+    CUDF_EXPECTS(p2pnnd_pair_view.num_columns()==3,"a p2p_nn result table must have 3 columns");
+    const uint32_t * d_pp_pnt_idx=p2pnnd_pair_view.column(0).data<uint32_t>();      
+    const uint32_t * d_pp_poly_idx=p2pnnd_pair_view.column(1).data<uint32_t>();
+    const double * d_pp_nn_dist=p2pnnd_pair_view.column(2).data<double>();
 
-    for(uint32_t i=0;i<num_pq_pairs;i++)
-    {
-        EXPECT_EQ(h_poly_idx[i],c_poly_idx[i]);
-        EXPECT_EQ(h_quad_idx[i],c_quad_idx[i]);
-    }
+if(1)
+{
+
+    thrust::device_ptr<const uint32_t> pnt_idx_ptr=thrust::device_pointer_cast(d_pp_pnt_idx);
+    thrust::device_ptr<const uint32_t> poly_idx_ptr=thrust::device_pointer_cast(d_pp_poly_idx);
+    thrust::device_ptr<const double> nn_dist_ptr=thrust::device_pointer_cast(d_pp_nn_dist);
+     
+    std::cout<<"point index"<<std::endl;
+    thrust::copy(pnt_idx_ptr,pnt_idx_ptr+point_len,std::ostream_iterator<const uint32_t>(std::cout, " "));std::cout<<std::endl;
     
-    delete[] h_poly_idx;
-    delete[] h_quad_idx;
-    
+    std::cout<<"polygon index"<<std::endl;
+    thrust::copy(poly_idx_ptr,poly_idx_ptr+point_len,std::ostream_iterator<const uint32_t>(std::cout, " "));std::cout<<std::endl;
+
+    std::cout<<"nn distance"<<std::endl;
+    thrust::copy(nn_dist_ptr,nn_dist_ptr+point_len,std::ostream_iterator<const double>(std::cout, " "));std::cout<<std::endl;
+
+}
+
 }
